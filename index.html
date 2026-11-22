@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>30 分鐘＋5 分鐘計時器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --text: #20252b;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --green: #15803d;
+      --orange: #c2410c;
+      --shadow: 0 12px 32px rgba(20, 30, 50, .07);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 32px 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .container { width: min(760px, 100%); margin: 0 auto; }
+
+    h1 {
+      margin: 0 0 8px;
+      text-align: center;
+      font-size: clamp(25px, 5vw, 34px);
+      letter-spacing: .02em;
+    }
+
+    .subtitle {
+      margin: 0 0 26px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .panel {
+      padding: clamp(22px, 5vw, 36px);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .timer-panel { text-align: center; }
+
+    .phase-label {
+      display: inline-block;
+      margin-bottom: 12px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .timer {
+      margin: 0;
+      font-size: clamp(68px, 17vw, 112px);
+      line-height: 1.15;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.055em;
+    }
+
+    .status {
+      min-height: 28px;
+      margin: 12px 0 24px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .progress-track {
+      height: 9px;
+      overflow: hidden;
+      margin: 0 auto 25px;
+      max-width: 480px;
+      border-radius: 999px;
+      background: #edf0f3;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent);
+      transition: width .25s linear;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      min-height: 46px;
+      padding: 11px 20px;
+      border: 0;
+      border-radius: 11px;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .12s ease, opacity .12s ease, background .12s ease;
+    }
+
+    button:active { transform: scale(.98); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    .primary {
+      min-width: 180px;
+      background: var(--accent);
+      color: #fff;
+    }
+    .primary:hover:not(:disabled) { background: #1d4ed8; }
+
+    .secondary {
+      background: #eef0f3;
+      color: #374151;
+    }
+    .secondary:hover { background: #e2e5e9; }
+
+    .sound-note {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .stats-panel { margin-top: 22px; }
+
+    .stats-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    h2 { margin: 0; font-size: 20px; }
+
+    .total {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 13px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    td:last-child, th:last-child { text-align: right; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .count { font-weight: 750; font-variant-numeric: tabular-nums; }
+    .empty { padding: 24px 12px; color: var(--muted); text-align: center; }
+
+    .stats-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 14px;
+    }
+
+    .clear-button {
+      min-height: 36px;
+      padding: 7px 12px;
+      color: #6b7280;
+      background: transparent;
+      font-size: 12px;
+    }
+    .clear-button:hover { background: #f3f4f6; }
+
+
+    .cadence-panel { margin-top: 22px; }
+    .cadence-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .cadence-total { color: var(--muted); font-size: 13px; white-space: nowrap; }
+    .cadence-desc { margin: 0 0 20px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .cadence-display {
+      padding: 20px 16px 16px;
+      margin-bottom: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f8fafc;
+      text-align: center;
+    }
+    .cadence-display.is-running { background: #eff6ff; border-color: #bfdbfe; }
+    .cadence-bpm { font-size: 42px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+    .cadence-bpm small { margin-left: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+    .cadence-timer {
+      margin: 10px 0 4px;
+      font-size: 44px;
+      font-weight: 750;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.03em;
+    }
+    .cadence-status { min-height: 22px; margin: 0 0 14px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .beat-row { display: flex; align-items: center; justify-content: center; gap: 12px; max-width: 480px; margin: 0 auto 10px; }
+    .foot-dot {
+      flex: 0 0 42px; height: 42px; display: grid; place-items: center;
+      border-radius: 999px; background: #e5e7eb; color: #6b7280;
+      font-size: 14px; font-weight: 800;
+      transition: transform .08s ease, background .08s ease, color .08s ease;
+    }
+    .foot-dot.active { background: var(--accent); color: #fff; transform: scale(1.18); }
+    .beat-line { flex: 1; height: 9px; overflow: hidden; border-radius: 999px; background: #e5e7eb; }
+    .beat-progress { width: 0%; height: 100%; border-radius: inherit; background: var(--accent); transition: width .2s linear; }
+    .cadence-meta {
+      display: flex; justify-content: space-between; gap: 10px;
+      max-width: 480px; margin: 0 auto; color: var(--muted); font-size: 13px;
+    }
+    .cadence-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+    .cadence-card {
+      padding: 16px 12px; border: 1px solid var(--line); border-radius: 14px;
+      background: #fff; text-align: center; transition: border-color .15s ease, background .15s ease;
+    }
+    .cadence-card.is-active { border-color: var(--accent); background: var(--accent-soft); }
+    .cadence-card-tag { display: inline-block; margin-bottom: 6px; padding: 3px 8px; border-radius: 999px; background: #eef0f3; color: #6b7280; font-size: 12px; font-weight: 700; }
+    .cadence-card.is-active .cadence-card-tag { background: var(--accent); color: #fff; }
+    .cadence-card-bpm { font-size: 28px; font-weight: 800; line-height: 1.1; }
+    .cadence-card-bpm span { font-size: 12px; color: var(--muted); font-weight: 700; }
+    .cadence-card-time { margin: 6px 0 2px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .cadence-card-steps { color: var(--text); font-size: 13px; font-weight: 700; }
+    .cadence-actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .cadence-toggle {
+      display: inline-flex; align-items: center; gap: 8px;
+      min-height: 46px; padding: 11px 16px; border-radius: 11px;
+      background: #eef0f3; color: #374151; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .cadence-toggle input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+    @media (max-width: 560px) {
+      .cadence-cards { grid-template-columns: 1fr; }
+      .cadence-heading { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 22px 12px; }
+      .panel { border-radius: 16px; }
+      .stats-heading { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>30 分鐘＋5 分鐘計時器</h1>
+    <p class="subtitle">先倒數 30 分鐘並響鈴，再倒數 5 分鐘並響鈴。一開始先按「新的開始」，才會開始 30 分鐘倒數；接著自動倒數 5 分鐘。兩段完成後，再按一次「新的開始」進入下一輪。</p>
+
+    <section class="panel timer-panel" aria-live="polite">
+      <div class="phase-label" id="phaseLabel">第一階段｜30 分鐘</div>
+      <p class="timer" id="timer">30:00</p>
+      <p class="status" id="status">尚未開始，按下「新的開始」後開始倒數</p>
+      <div class="progress-track" aria-hidden="true">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="newStartButton" type="button">新的開始</button>
+      </div>
+      <p class="sound-note" id="soundNote">內建柔和鈴聲會在按下「新的開始」時自動準備，不需要另外啟用。請保持裝置音量開啟，並讓此網頁保持開啟。</p>
+    </section>
+
+    <section class="panel cadence-panel" aria-live="polite">
+      <div class="cadence-heading">
+        <h2>步頻節拍器・5 分鐘同步</h2>
+        <div class="cadence-total">共 970 步</div>
+      </div>
+      <p class="cadence-desc">不用另外按開始。30 分鐘結束、鈴聲響完，進入 5 分鐘倒數時會自動同步播放腳步聲：<strong>180 一分鐘 → 190 一分鐘 → 200 三分鐘</strong>，跟著左右腳聲音跑。</p>
+
+      <div class="cadence-display" id="cadenceDisplay">
+        <div class="cadence-bpm"><span id="cadenceBpm">—</span><small>步 / 分鐘</small></div>
+        <p class="cadence-timer" id="cadenceTimer">--:--</p>
+        <p class="cadence-status" id="cadenceStatus">尚未開始，完成 30 分鐘後自動進入 5 分鐘步頻</p>
+        <div class="beat-row" aria-hidden="true">
+          <div class="foot-dot" id="footLeft">左</div>
+          <div class="beat-line"><div class="beat-progress" id="cadenceProgress"></div></div>
+          <div class="foot-dot" id="footRight">右</div>
+        </div>
+        <div class="cadence-meta">
+          <span id="cadenceStepCount">已跑約 0 / 970 步</span>
+          <span id="cadencePhase">—</span>
+        </div>
+      </div>
+
+      <div class="cadence-cards">
+        <article class="cadence-card" id="cadenceCard0">
+          <div class="cadence-card-tag">第 1 段・0:00 - 1:00</div>
+          <div class="cadence-card-bpm">180 <span>SPM</span></div>
+          <div class="cadence-card-time">1 分鐘</div>
+          <div class="cadence-card-steps">共 180 步</div>
+        </article>
+        <article class="cadence-card" id="cadenceCard1">
+          <div class="cadence-card-tag">第 2 段・1:00 - 2:00</div>
+          <div class="cadence-card-bpm">190 <span>SPM</span></div>
+          <div class="cadence-card-time">1 分鐘</div>
+          <div class="cadence-card-steps">共 190 步</div>
+        </article>
+        <article class="cadence-card" id="cadenceCard2">
+          <div class="cadence-card-tag">第 3 段・2:00 - 5:00</div>
+          <div class="cadence-card-bpm">200 <span>SPM</span></div>
+          <div class="cadence-card-time">3 分鐘</div>
+          <div class="cadence-card-steps">共 600 步</div>
+        </article>
+      </div>
+
+      <div class="cadence-actions">
+        <label class="cadence-toggle"><input type="checkbox" id="cadenceToggle" checked> <span id="cadenceToggleLabel">步頻音效：開</span></label>
+        <button class="secondary" id="cadenceTestButton" type="button">試聽腳步聲</button>
+      </div>
+      <p class="sound-note">步頻只在 5 分鐘倒數時播放，會跟上方 5 分鐘倒數用同一個時間軸同步，換段時自動換速，不用手動切換。想先確認音量，可以按「試聽腳步聲」。請保持裝置音量開啟，並讓此網頁保持開啟。</p>
+    </section>
+
+    <section class="panel stats-panel">
+      <div class="stats-heading">
+        <h2>每日重新開始統計</h2>
+        <div class="total" id="totalCount">累計 0 次</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">日期</th>
+              <th scope="col">按下「新的開始」次數</th>
+            </tr>
+          </thead>
+          <tbody id="statsBody">
+            <tr><td class="empty" colspan="2">目前還沒有重新開始的紀錄</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="stats-footer">
+        <button class="clear-button" id="clearStatsButton" type="button">清除統計紀錄</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const FOCUS_MS = 30 * 60 * 1000;
+      const SHORT_MS = 5 * 60 * 1000;
+      // 鈴聲播放約 5 秒，留足時間讓柔和提示音完整播完。
+      const ALARM_MS = 6000;
+      const TIMER_KEY = 'thirtyPlusFiveTimerState_v2';
+      const STATS_KEY = 'thirtyPlusFiveTimerStats_v1';
+
+      const phaseLabel = document.getElementById('phaseLabel');
+      const timerDisplay = document.getElementById('timer');
+      const statusDisplay = document.getElementById('status');
+      const progressBar = document.getElementById('progressBar');
+      const newStartButton = document.getElementById('newStartButton');
+      const soundNote = document.getElementById('soundNote');
+      const statsBody = document.getElementById('statsBody');
+      const totalCount = document.getElementById('totalCount');
+      const clearStatsButton = document.getElementById('clearStatsButton');
+
+      let audioContext = null;
+      let masterGain = null;
+      let soundAvailable = true;
+      let timerState = loadTimerState();
+      let dailyStats = loadStats();
+
+      function localDateKey(date = new Date()) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function loadTimerState() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(TIMER_KEY));
+          if (saved && ['idle', 'focus', 'alarm1', 'short', 'alarm2', 'done'].includes(saved.phase)) {
+            return saved;
+          }
+        } catch (error) {
+          console.warn('讀取計時狀態失敗：', error);
+        }
+        return { phase: 'idle', deadline: null };
+      }
+
+      function saveTimerState() {
+        try {
+          localStorage.setItem(TIMER_KEY, JSON.stringify(timerState));
+        } catch (error) {
+          console.warn('儲存計時狀態失敗：', error);
+        }
+      }
+
+      function loadStats() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STATS_KEY));
+          return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+        } catch (error) {
+          console.warn('讀取統計資料失敗：', error);
+          return {};
+        }
+      }
+
+      function saveStats() {
+        try {
+          localStorage.setItem(STATS_KEY, JSON.stringify(dailyStats));
+        } catch (error) {
+          console.warn('儲存統計資料失敗：', error);
+        }
+      }
+
+      // 瀏覽器通常只允許在使用者操作後啟動網頁音訊。
+      // 因此直接在「新的開始」按鈕的點擊事件內準備音訊，不需要額外按啟用音效。
+      function prepareSoundFromUserAction() {
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) {
+            soundAvailable = false;
+            soundNote.textContent = '此瀏覽器不支援內建音效，請改用最新版 Chrome、Edge 或 Safari。';
+            return;
+          }
+          if (!audioContext) {
+            audioContext = new AudioContextClass();
+            masterGain = audioContext.createGain();
+            masterGain.gain.setValueAtTime(0.62, audioContext.currentTime);
+            masterGain.connect(audioContext.destination);
+          }
+          if (audioContext.state === 'suspended') {
+            const resumePromise = audioContext.resume();
+            if (resumePromise && typeof resumePromise.catch === 'function') {
+              resumePromise.catch(error => {
+                console.warn('音訊啟動失敗：', error);
+                soundAvailable = false;
+                soundNote.textContent = '瀏覽器目前未允許播放鈴聲；請重新整理網頁後，再按「新的開始」。';
+              });
+            }
+          }
+        } catch (error) {
+          console.warn('準備內建鈴聲失敗：', error);
+          soundAvailable = false;
+          soundNote.textContent = '無法啟動內建鈴聲，請使用最新版瀏覽器並確認裝置音量。';
+        }
+      }
+
+      function scheduleGentleChime(frequency, startAt) {
+        const oscillator = audioContext.createOscillator();
+        const envelope = audioContext.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, startAt);
+        envelope.gain.setValueAtTime(0.0001, startAt);
+        envelope.gain.exponentialRampToValueAtTime(0.17, startAt + 0.045);
+        envelope.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.95);
+        oscillator.connect(envelope);
+        envelope.connect(masterGain);
+        oscillator.start(startAt);
+        oscillator.stop(startAt + 1.0);
+      }
+
+      function playAlarm(which) {
+        if (!soundAvailable || !audioContext || !masterGain) return;
+
+        const schedule = () => {
+          if (!audioContext || audioContext.state !== 'running') return;
+          const base = audioContext.currentTime + 0.08;
+          // 三組由低至高的柔和純音鈴聲，重複三輪；沒有尖銳、高音量的蜂鳴聲。
+          const notes = [523.25, 659.25, 783.99];
+          [0, 1.8, 3.6].forEach(roundOffset => {
+            notes.forEach((frequency, index) => {
+              scheduleGentleChime(frequency, base + roundOffset + index * 0.18);
+            });
+          });
+
+          if (navigator.vibrate) {
+            try { navigator.vibrate([160, 120, 160, 120, 160]); } catch (_) {}
+          }
+
+          if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification(which === 'alarm1' ? '30 分鐘時間到' : '5 分鐘時間到', {
+                body: '計時器已完成這一階段。',
+                tag: 'thirty-plus-five-timer'
+              });
+            } catch (_) {}
+          }
+        };
+
+        if (audioContext.state === 'running') {
+          schedule();
+        } else if (audioContext.state === 'suspended') {
+          // 某些瀏覽器切換背景後會暫停音訊，返回時再嘗試恢復。
+          audioContext.resume().then(schedule).catch(error => {
+            console.warn('恢復鈴聲播放失敗：', error);
+          });
+        }
+      }
+
+
+      // ===== 步頻節拍器（新增）：只在 5 分鐘倒數時，跟 5 分鐘用同一個 deadline 同步播放 =====
+      // 180 x 1分鐘 (0:00-1:00) -> 190 x 1分鐘 (1:00-2:00) -> 200 x 3分鐘 (2:00-5:00) = 剛好 5 分鐘
+      const CADENCE_SEGMENTS = [
+        { bpm: 180, durationMs: 1 * 60 * 1000, label: '180 步頻・1 分鐘' },
+        { bpm: 190, durationMs: 1 * 60 * 1000, label: '190 步頻・1 分鐘' },
+        { bpm: 200, durationMs: 3 * 60 * 1000, label: '200 步頻・3 分鐘' },
+      ];
+      const CADENCE_TOTAL_STEPS = 180 + 190 + 600; // 970
+      const cadenceDisplay = document.getElementById('cadenceDisplay');
+      const cadenceBpm = document.getElementById('cadenceBpm');
+      const cadenceTimer = document.getElementById('cadenceTimer');
+      const cadenceStatus = document.getElementById('cadenceStatus');
+      const cadenceProgress = document.getElementById('cadenceProgress');
+      const cadenceStepCount = document.getElementById('cadenceStepCount');
+      const cadencePhase = document.getElementById('cadencePhase');
+      const footLeft = document.getElementById('footLeft');
+      const footRight = document.getElementById('footRight');
+      const cadenceToggle = document.getElementById('cadenceToggle');
+      const cadenceToggleLabel = document.getElementById('cadenceToggleLabel');
+      const cadenceTestButton = document.getElementById('cadenceTestButton');
+
+      let cadenceEnabled = true;
+      let cadence = { active: false, startAudioTime: 0, nextStepTime: 0, isLeft: true, schedulerId: null };
+
+      function getCadenceSegment(elapsedMs) {
+        const clamped = Math.max(0, Math.min(SHORT_MS, elapsedMs));
+        let start = 0;
+        for (let i = 0; i < CADENCE_SEGMENTS.length; i++) {
+          const end = start + CADENCE_SEGMENTS[i].durationMs;
+          if (clamped < end || i === CADENCE_SEGMENTS.length - 1) {
+            return { index: i, bpm: CADENCE_SEGMENTS[i].bpm, label: CADENCE_SEGMENTS[i].label, start, end, durationMs: CADENCE_SEGMENTS[i].durationMs };
+          }
+          start = end;
+        }
+        return { index: 2, bpm: 200, label: CADENCE_SEGMENTS[2].label, start: 120000, end: 300000, durationMs: 180000 };
+      }
+
+      // 用 5 分鐘已過時間推算理論步數，畫面顯示才會跟倒數同步，不會被背景節流拖慢
+      function getTheoreticalStepCount(elapsedMs) {
+        const e = Math.max(0, Math.min(SHORT_MS, elapsedMs));
+        if (e < 60000) return Math.floor(e / (60000 / 180));
+        if (e < 120000) return 180 + Math.floor((e - 60000) / (60000 / 190));
+        return 370 + Math.floor((e - 120000) / (180000 / 600));
+      }
+
+      function flashFoot(isLeft, atTime) {
+        if (!audioContext) return;
+        const delayMs = Math.max(0, (atTime - audioContext.currentTime) * 1000);
+        window.setTimeout(() => {
+          footLeft.classList.toggle('active', isLeft);
+          footRight.classList.toggle('active', !isLeft);
+          window.setTimeout(() => {
+            footLeft.classList.remove('active');
+            footRight.classList.remove('active');
+          }, 110);
+        }, delayMs);
+      }
+
+      // 腳步聲：低頻「咚」的腳掌落地聲 + 短促噪聲的觸地聲，左右腳用左右聲道區分
+      function playFootstep(atTime, isLeft) {
+        if (!audioContext || !masterGain || audioContext.state !== 'running') return;
+        try {
+          const noiseLen = Math.floor(audioContext.sampleRate * 0.07);
+          const noiseBuffer = audioContext.createBuffer(1, noiseLen, audioContext.sampleRate);
+          const data = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < noiseLen; i++) {
+            data[i] = (Math.random() * 2 - 1) * (1 - i / noiseLen);
+          }
+          const noise = audioContext.createBufferSource();
+          noise.buffer = noiseBuffer;
+          const noiseFilter = audioContext.createBiquadFilter();
+          noiseFilter.type = 'lowpass';
+          noiseFilter.frequency.setValueAtTime(750, atTime);
+          const noiseGain = audioContext.createGain();
+          noiseGain.gain.setValueAtTime(0.0001, atTime);
+          noiseGain.gain.exponentialRampToValueAtTime(0.42, atTime + 0.008);
+          noiseGain.gain.exponentialRampToValueAtTime(0.0001, atTime + 0.07);
+
+          const thump = audioContext.createOscillator();
+          thump.type = 'sine';
+          thump.frequency.setValueAtTime(120, atTime);
+          thump.frequency.exponentialRampToValueAtTime(48, atTime + 0.09);
+          const thumpGain = audioContext.createGain();
+          thumpGain.gain.setValueAtTime(0.0001, atTime);
+          thumpGain.gain.exponentialRampToValueAtTime(0.55, atTime + 0.01);
+          thumpGain.gain.exponentialRampToValueAtTime(0.0001, atTime + 0.11);
+
+          let outNode = masterGain;
+          if (typeof audioContext.createStereoPanner === 'function') {
+            const panner = audioContext.createStereoPanner();
+            panner.pan.setValueAtTime(isLeft ? -0.45 : 0.45, atTime);
+            panner.connect(masterGain);
+            outNode = panner;
+          }
+          noise.connect(noiseFilter);
+          noiseFilter.connect(noiseGain);
+          noiseGain.connect(outNode);
+          thump.connect(thumpGain);
+          thumpGain.connect(outNode);
+          noise.start(atTime);
+          noise.stop(atTime + 0.08);
+          thump.start(atTime);
+          thump.stop(atTime + 0.12);
+        } catch (error) {
+          console.warn('播放腳步聲失敗：', error);
+        }
+      }
+
+      function stopCadence() {
+        if (cadence.schedulerId) window.clearInterval(cadence.schedulerId);
+        cadence.schedulerId = null;
+        cadence.active = false;
+      }
+
+      function cadenceScheduler() {
+        if (!cadence.active || !audioContext || audioContext.state !== 'running') return;
+        if (timerState.phase !== 'short') { stopCadence(); return; }
+        // 往前預排 0.15 秒，節奏才會穩，不會被 setInterval 抖動拖慢
+        while (cadence.nextStepTime < audioContext.currentTime + 0.15) {
+          // 背景 / 音訊暫停後落後太多，直接跳過不補播，避免一次爆出幾十個腳步聲
+          if (cadence.nextStepTime < audioContext.currentTime - 0.05) {
+            const missedElapsed = (cadence.nextStepTime - cadence.startAudioTime) * 1000;
+            const missedBpm = getCadenceSegment(Math.max(0, missedElapsed)).bpm;
+            cadence.nextStepTime += 60 / missedBpm;
+            cadence.isLeft = !cadence.isLeft;
+            continue;
+          }
+          const elapsedForStep = (cadence.nextStepTime - cadence.startAudioTime) * 1000;
+          if (elapsedForStep >= SHORT_MS) break;
+          if (elapsedForStep < 0) { cadence.nextStepTime = audioContext.currentTime + 0.02; continue; }
+          const bpm = getCadenceSegment(elapsedForStep).bpm;
+          const isLeft = cadence.isLeft;
+          playFootstep(cadence.nextStepTime, isLeft);
+          flashFoot(isLeft, cadence.nextStepTime);
+          cadence.isLeft = !cadence.isLeft;
+          cadence.nextStepTime += 60 / bpm;
+        }
+      }
+
+      function tryStartCadence() {
+        if (!cadenceEnabled) return;
+        if (timerState.phase !== 'short' || !Number.isFinite(timerState.deadline)) return;
+        if (cadence.active) return;
+        if (!audioContext || !masterGain || audioContext.state !== 'running') return;
+        const remaining = Math.max(0, timerState.deadline - Date.now());
+        if (remaining <= 0) return;
+        const elapsed = SHORT_MS - remaining;
+        // 把 AudioContext 時間軸對齊到 5 分鐘倒數的已過時間，這樣即使中途重整 / 音訊晚啟動，也能從正確的段開始
+        cadence.startAudioTime = audioContext.currentTime - elapsed / 1000;
+        cadence.nextStepTime = audioContext.currentTime + 0.08;
+        cadence.isLeft = getTheoreticalStepCount(elapsed) % 2 === 0;
+        cadence.active = true;
+        if (cadence.schedulerId) window.clearInterval(cadence.schedulerId);
+        cadence.schedulerId = window.setInterval(cadenceScheduler, 25);
+        cadenceScheduler();
+      }
+
+      function updateCadenceUI() {
+        if (!cadenceBpm) return;
+        [0, 1, 2].forEach(i => {
+          const card = document.getElementById('cadenceCard' + i);
+          if (card) card.classList.remove('is-active');
+        });
+        if (timerState.phase === 'short' && Number.isFinite(timerState.deadline)) {
+          const remaining = Math.max(0, timerState.deadline - Date.now());
+          const elapsed = SHORT_MS - remaining;
+          const seg = getCadenceSegment(elapsed);
+          const segRemaining = Math.max(0, seg.end - elapsed);
+          cadenceBpm.textContent = String(seg.bpm);
+          cadenceTimer.textContent = formatTime(segRemaining);
+          cadenceStatus.textContent = !cadenceEnabled
+            ? `步頻音效已關閉（5 分鐘還剩 ${formatTime(remaining)}）`
+            : cadence.active
+              ? `跟著腳步聲跑・5 分鐘同步中（5 分鐘還剩 ${formatTime(remaining)}）`
+              : `5 分鐘倒數中，步頻音效準備中…（還剩 ${formatTime(remaining)}）點一下畫面可喚醒音效`;
+          cadenceProgress.style.width = `${Math.max(0, Math.min(100, elapsed / SHORT_MS * 100))}%`;
+          cadenceStepCount.textContent = `已跑約 ${getTheoreticalStepCount(elapsed)} / ${CADENCE_TOTAL_STEPS} 步`;
+          cadencePhase.textContent = `第 ${seg.index + 1} 段｜${seg.label}`;
+          cadenceDisplay.classList.add('is-running');
+          const card = document.getElementById('cadenceCard' + seg.index);
+          if (card) card.classList.add('is-active');
+        } else if (timerState.phase === 'alarm1') {
+          cadenceBpm.textContent = '180';
+          cadenceTimer.textContent = '01:00';
+          cadenceStatus.textContent = '30 分鐘到！鈴聲後立刻開始 5 分鐘步頻（180 → 190 → 200）';
+          cadenceProgress.style.width = '0%';
+          cadenceStepCount.textContent = `已跑約 0 / ${CADENCE_TOTAL_STEPS} 步`;
+          cadencePhase.textContent = '第 1 段即將開始｜180 步頻・1 分鐘';
+          cadenceDisplay.classList.remove('is-running');
+        } else if (timerState.phase === 'alarm2' || timerState.phase === 'done') {
+          cadenceBpm.textContent = '—';
+          cadenceTimer.textContent = '時間到';
+          cadenceStatus.textContent = '5 分鐘步頻完成！180 → 190 → 200 都跑完了';
+          cadenceProgress.style.width = '100%';
+          cadenceStepCount.textContent = `已跑約 ${CADENCE_TOTAL_STEPS} / ${CADENCE_TOTAL_STEPS} 步`;
+          cadencePhase.textContent = '步頻完成';
+          cadenceDisplay.classList.remove('is-running');
+        } else {
+          cadenceBpm.textContent = '—';
+          cadenceTimer.textContent = '--:--';
+          cadenceStatus.textContent = timerState.phase === 'focus'
+            ? '30 分鐘倒數中，結束後自動進入 5 分鐘步頻'
+            : '尚未開始，完成 30 分鐘後自動進入 5 分鐘步頻';
+          cadenceProgress.style.width = '0%';
+          cadenceStepCount.textContent = `已跑約 0 / ${CADENCE_TOTAL_STEPS} 步`;
+          cadencePhase.textContent = '—';
+          cadenceDisplay.classList.remove('is-running');
+        }
+      }
+
+      if (cadenceToggle) {
+        cadenceToggle.addEventListener('change', () => {
+          cadenceEnabled = cadenceToggle.checked;
+          cadenceToggleLabel.textContent = cadenceEnabled ? '步頻音效：開' : '步頻音效：關';
+          if (!cadenceEnabled) {
+            stopCadence();
+          } else {
+            // 重新打開時，若正在 5 分鐘倒數，立刻從正確的段接上
+            if (audioContext && audioContext.state === 'suspended') {
+              audioContext.resume().then(() => tryStartCadence()).catch(() => {});
+            } else {
+              tryStartCadence();
+            }
+          }
+          updateCadenceUI();
+        });
+      }
+
+      if (cadenceTestButton) {
+        cadenceTestButton.addEventListener('click', () => {
+          prepareSoundFromUserAction();
+          const playTwo = () => {
+            if (!audioContext || audioContext.state !== 'running') return;
+            const at = audioContext.currentTime + 0.06;
+            playFootstep(at, true);
+            flashFoot(true, at);
+            window.setTimeout(() => {
+              if (!audioContext || audioContext.state !== 'running') return;
+              const at2 = audioContext.currentTime + 0.05;
+              playFootstep(at2, false);
+              flashFoot(false, at2);
+            }, 330);
+          };
+          if (audioContext && audioContext.state === 'suspended') {
+            audioContext.resume().then(playTwo).catch(() => {});
+          } else {
+            window.setTimeout(playTwo, 30);
+          }
+        });
+      }
+
+      // 瀏覽器可能在 30 分鐘後暫停音訊，任何點擊都嘗試喚醒並接上步頻
+      document.addEventListener('click', () => {
+        if (timerState.phase !== 'short' || !cadenceEnabled || cadence.active) return;
+        // 重整後 audioContext 還沒建立，點擊本身就是使用者操作，可以直接建立音訊
+        if (!audioContext) {
+          prepareSoundFromUserAction();
+          window.setTimeout(() => { tryStartCadence(); }, 30);
+          return;
+        }
+        if (audioContext.state === 'suspended') {
+          audioContext.resume().then(() => tryStartCadence()).catch(() => {});
+        } else {
+          tryStartCadence();
+        }
+      });
+
+      function startAlarm(which) {
+        timerState.phase = which;
+        timerState.deadline = Date.now() + ALARM_MS;
+        saveTimerState();
+        playAlarm(which);
+        render();
+      }
+
+      function transitionWhenExpired(now) {
+        if (timerState.phase === 'focus') {
+          startAlarm('alarm1');
+        } else if (timerState.phase === 'alarm1') {
+          timerState.phase = 'short';
+          timerState.deadline = now + SHORT_MS;
+          saveTimerState();
+          // 進入 5 分鐘倒數，同步開始步頻 180 -> 190 -> 200
+          window.setTimeout(() => { tryStartCadence(); }, 60);
+        } else if (timerState.phase === 'short') {
+          stopCadence();
+          startAlarm('alarm2');
+        } else if (timerState.phase === 'alarm2') {
+          timerState.phase = 'done';
+          timerState.deadline = null;
+          saveTimerState();
+        }
+      }
+
+      function tick() {
+        if (timerState.phase !== 'done' && Number.isFinite(timerState.deadline)) {
+          const now = Date.now();
+          if (now >= timerState.deadline) transitionWhenExpired(now);
+        }
+        // 步頻生命週期：只在 5 分鐘階段活著，離開就停；重整 / 音訊喚醒後自動接上
+        if (timerState.phase === 'short') {
+          tryStartCadence();
+        } else if (timerState.phase !== 'alarm1') {
+          if (cadence.active) stopCadence();
+        }
+        render();
+      }
+
+      function formatTime(milliseconds) {
+        const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }
+
+      function render() {
+        const now = Date.now();
+        let duration = FOCUS_MS;
+        let remaining = 0;
+        let label = '';
+        let status = '';
+        let progress = 0;
+
+        switch (timerState.phase) {
+          case 'idle':
+            duration = FOCUS_MS;
+            remaining = FOCUS_MS;
+            label = '第一階段｜30 分鐘';
+            status = '尚未開始，按下「新的開始」後開始倒數';
+            progress = 0;
+            break;
+          case 'focus':
+            duration = FOCUS_MS;
+            remaining = Math.max(0, timerState.deadline - now);
+            label = '第一階段｜30 分鐘';
+            status = '計時中';
+            progress = 1 - remaining / duration;
+            break;
+          case 'alarm1':
+            label = '第一階段｜30 分鐘';
+            status = '30 分鐘到！柔和鈴聲提醒中';
+            progress = 1;
+            break;
+          case 'short':
+            duration = SHORT_MS;
+            remaining = Math.max(0, timerState.deadline - now);
+            label = '第二階段｜5 分鐘';
+            status = '繼續倒數 5 分鐘';
+            progress = 1 - remaining / duration;
+            break;
+          case 'alarm2':
+            label = '第二階段｜5 分鐘';
+            status = '5 分鐘到！柔和鈴聲提醒中';
+            progress = 1;
+            break;
+          case 'done':
+            label = '本輪完成';
+            status = '兩段計時都已結束，按下「新的開始」進入下一輪';
+            progress = 1;
+            break;
+        }
+
+        phaseLabel.textContent = label;
+        timerDisplay.textContent = timerState.phase === 'done' ? '完成' :
+          (timerState.phase === 'alarm1' || timerState.phase === 'alarm2' ? '時間到' : formatTime(remaining));
+        statusDisplay.textContent = status;
+        progressBar.style.width = `${Math.max(0, Math.min(100, progress * 100))}%`;
+        newStartButton.hidden = !['idle', 'done'].includes(timerState.phase);
+        newStartButton.disabled = !['idle', 'done'].includes(timerState.phase);
+        updateCadenceUI();
+      }
+
+      function renderStats() {
+        const dates = Object.keys(dailyStats)
+          .filter(date => Number.isFinite(dailyStats[date]) && dailyStats[date] > 0)
+          .sort((a, b) => b.localeCompare(a));
+        const total = dates.reduce((sum, date) => sum + dailyStats[date], 0);
+        totalCount.textContent = `累計 ${total} 次`;
+
+        if (dates.length === 0) {
+          statsBody.innerHTML = '<tr><td class="empty" colspan="2">目前還沒有重新開始的紀錄</td></tr>';
+          return;
+        }
+
+        statsBody.innerHTML = '';
+        dates.forEach(date => {
+          const row = document.createElement('tr');
+          const dateCell = document.createElement('td');
+          const countCell = document.createElement('td');
+          dateCell.textContent = date;
+          countCell.textContent = `${dailyStats[date]} 次`;
+          countCell.className = 'count';
+          row.append(dateCell, countCell);
+          statsBody.appendChild(row);
+        });
+      }
+
+      newStartButton.addEventListener('click', () => {
+        if (!['idle', 'done'].includes(timerState.phase)) return;
+        // 這次點擊本身就是瀏覽器允許啟動音訊的使用者操作。
+        prepareSoundFromUserAction();
+        const today = localDateKey();
+        dailyStats[today] = (Number(dailyStats[today]) || 0) + 1;
+        saveStats();
+        renderStats();
+
+        timerState = { phase: 'focus', deadline: Date.now() + FOCUS_MS };
+        saveTimerState();
+        render();
+      });
+
+      clearStatsButton.addEventListener('click', () => {
+        if (!confirm('確定要清除所有每日重新開始統計紀錄嗎？此動作無法復原。')) return;
+        dailyStats = {};
+        saveStats();
+        renderStats();
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          if (timerState.phase === 'short' && cadenceEnabled && audioContext && audioContext.state === 'suspended') {
+            audioContext.resume().then(() => tryStartCadence()).catch(() => {});
+          }
+          tick();
+        }
+      });
+
+      renderStats();
+      tick();
+      window.setInterval(tick, 250);
+    })();
+  </script>
+</body>
+</html>
